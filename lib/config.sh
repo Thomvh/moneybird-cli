@@ -87,6 +87,16 @@ sessions_current_id() {
   jq -r '.current // empty' "$sessions_file"
 }
 
+# Get the administration ID whose session a request uses:
+# the --administration override if given, otherwise the current one
+sessions_active_id() {
+  if [[ -n "$OPT_ADMINISTRATION" ]]; then
+    echo "$OPT_ADMINISTRATION"
+  else
+    sessions_current_id
+  fi
+}
+
 # Store a session (token + admin info)
 sessions_store() {
   local admin_id="$1" admin_name="$2" token_data="$3"
@@ -164,40 +174,40 @@ sessions_use() {
   fi
 }
 
-# Get token for current session
+# Get token for active session
 sessions_get_token() {
   local sessions_file
   sessions_file=$(config_sessions_file)
   [[ -f "$sessions_file" ]] || return 1
 
   local admin_id
-  admin_id=$(jq -r '.current // empty' "$sessions_file")
+  admin_id=$(sessions_active_id)
   [[ -z "$admin_id" ]] && return 1
 
   jq -r --arg id "$admin_id" '.sessions[$id].access_token // empty' "$sessions_file"
 }
 
-# Get token expiry for current session
+# Get token expiry for active session
 sessions_get_expires_at() {
   local sessions_file
   sessions_file=$(config_sessions_file)
   [[ -f "$sessions_file" ]] || return 1
 
   local admin_id
-  admin_id=$(jq -r '.current // empty' "$sessions_file")
+  admin_id=$(sessions_active_id)
   [[ -z "$admin_id" ]] && return 1
 
   jq -r --arg id "$admin_id" '.sessions[$id].expires_at // 0' "$sessions_file"
 }
 
-# Update token data for current session (used by refresh)
+# Update token data for active session (used by refresh)
 sessions_update_token() {
   local token_data="$1"
   local sessions_file
   sessions_file=$(config_sessions_file)
 
   local admin_id
-  admin_id=$(jq -r '.current // empty' "$sessions_file")
+  admin_id=$(sessions_active_id)
 
   local tmp_file
   tmp_file=$(mktemp "$CONFIG_DIR/.sessions.XXXXXX")
